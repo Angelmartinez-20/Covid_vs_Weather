@@ -2,11 +2,13 @@
 
 ## Introduction
 In response to the global significance of the COVID-19 pandemic, our research aimed to uncover potential correlations between weather conditions and transmission rates of the virus. Focusing on temperature and geographical location as key variables, we gathered data from major cities across the US, including:
+
 * Los Angeles (CA)
 * Jacksonville (FL)
 * Detroit (MI)
 * New York City (NY)
 * Houston (TX)
+  
 The goal was to contribute insights into factors influencing transmission rates and inform strategies for prevention.
 
 ## Data Collection and Variables
@@ -15,7 +17,7 @@ Our dataset included COVID-19 cases and deaths per date, along with various weat
 ## Methods
 
 ### Exploratory Data Analysis (EDA)
-We conducted extensive exploratory data analysis, including ANOVA tests and TukeyHSD tests, to understand the impact of weather variables on COVID-19 transmission. Outliers were filtered to ensure consistency in our analyses.
+We conducted extensive exploratory data analysis to turn raw data into visual data. The graphs made was tailered to find correlation between diffrent vairables inorder to see where further investigation is needed to apply models. Graphs was also used to get an overview of our data so that outliers were filtered to ensure consistency in our analyses.
 
 ### ANOVA & TukeyHSD
 We applied ANOVA tests to examine the influence of seasons and city locations on temperature variations. TukeyHSD tests were used to identify significant differences, revealing the impact of temperature variations between seasons and locations.
