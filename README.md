@@ -12,19 +12,11 @@ The goal was to contribute insights into factors influencing transmission rates 
 ## Data Collection and Variables
 Our dataset included COVID-19 cases and deaths per date, along with various weather variables such as precipitation, wind speed, dew, and pressure. Additional variables like `new_cases` and `cases_growth` were introduced to account for daily fluctuations and compare transmission rates across different population sizes.
 
-## Accounting for Incubation Period
-To address the incubation period, we adjusted the COVID-19 dataset by shifting dates back an average of 5 days, considering the varying incubation periods reported by the CDC.
+## Methods
 
-## Data Splitting for Analysis
-To facilitate analysis and model development, we divided the dataset into a 60% training set, 20% validation set, and 20% testing set. This division allowed for effective exploration, model tuning, and final validation.
-
-## Related Works and Literature Review
-We drew inspiration from previous studies, including research from the National Library of Medicine and Tomasz Zuk and colleagues, who explored correlations between weather variables and COVID-19 rates.
-
-## Exploratory Data Analysis (EDA)
+### Exploratory Data Analysis (EDA)
 We conducted extensive exploratory data analysis, including ANOVA tests and TukeyHSD tests, to understand the impact of weather variables on COVID-19 transmission. Outliers were filtered to ensure consistency in our analyses.
 
-## Models and Methods
 ### ANOVA & TukeyHSD
 We applied ANOVA tests to examine the influence of seasons and city locations on temperature variations. TukeyHSD tests were used to identify significant differences, revealing the impact of temperature variations between seasons and locations.
 
