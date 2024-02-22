@@ -1,7 +1,13 @@
 # Exploring the Relationship Between Weather Conditions and COVID-19 Rates
 
 ## Introduction
-In response to the global significance of the COVID-19 pandemic, our research aimed to uncover potential correlations between weather conditions and transmission rates of the virus. Focusing on temperature and geographical location as key variables, we gathered data from major cities across the US, including Los Angeles (CA), Jacksonville (FL), Detroit (MI), New York City (NY), and Houston (TX). The goal was to contribute insights into factors influencing transmission rates and inform strategies for prevention.
+In response to the global significance of the COVID-19 pandemic, our research aimed to uncover potential correlations between weather conditions and transmission rates of the virus. Focusing on temperature and geographical location as key variables, we gathered data from major cities across the US, including:
+* Los Angeles (CA)
+* Jacksonville (FL)
+* Detroit (MI)
+* New York City (NY)
+* Houston (TX)
+The goal was to contribute insights into factors influencing transmission rates and inform strategies for prevention.
 
 ## Data Collection and Variables
 Our dataset included COVID-19 cases and deaths per date, along with various weather variables such as precipitation, wind speed, dew, and pressure. Additional variables like `new_cases` and `cases_growth` were introduced to account for daily fluctuations and compare transmission rates across different population sizes.
