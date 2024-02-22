@@ -1,0 +1,536 @@
+---
+title: "Exploring the Relationship Between Weather Conditions and COVID-19 Rates"
+author: "Angel Martinez, Jordan Tasho, Matthew Saephan"
+date: "`r format(Sys.time(), '%m/%d/%y')`"
+output: pdf
+---
+```{r Setup, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+options(warn = -1, message = FALSE)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(caret)
+library(modelr)
+library(rvest)
+library(broom)
+library(ggdist)
+
+```
+
+```{r Importing Datasets, echo=FALSE}
+LA_Covid <- read.csv("Datasets/LA_Covid.csv")
+LA_Weather <- read.csv("Datasets/LA_Weather.csv")
+
+NewYork_Covid <- read.csv("Datasets/NewYork_Covid.csv")
+NewYork_Weather <- read.csv("Datasets/NewYork_Weather.csv")
+
+Houston_Covid <- read.csv("Datasets/Houston_Covid.csv")
+Houston_Weather <- read.csv("Datasets/Houston_Weather.csv")
+
+Detroit_Covid <- read.csv("Datasets/Detroit_Covid.csv")
+Detroit_Weather <- read.csv("Datasets/Detroit_Weather.csv")
+
+Jacksonville_Covid <- read.csv("Datasets/Jacksonville_Covid.csv")
+Jacksonville_Weather <- read.csv("Datasets/Jacksonville_Weather.csv")
+
+```
+
+```{r Shiting dates and Joining, echo=FALSE}
+# adjusting dates format
+LA_Covid$date <- as.Date(LA_Covid$date, format = "%m/%d/%Y")
+LA_Weather$date <- as.Date(LA_Weather$date, format = "%m/%d/%Y")
+
+NewYork_Covid$date<- as.Date(NewYork_Covid$date, format = "%m/%d/%Y")
+NewYork_Weather$date <- as.Date(NewYork_Weather$date, format = "%m/%d/%Y")
+
+Houston_Covid$date<- as.Date(Houston_Covid$date, format = "%m/%d/%Y")
+Houston_Weather$date <- as.Date(Houston_Weather$date, format = "%m/%d/%Y")
+
+Detroit_Covid$date<- as.Date(Detroit_Covid$date, format = "%m/%d/%Y")
+Detroit_Weather$date <- as.Date(Detroit_Weather$date, format = "%m/%d/%Y")
+
+Jacksonville_Covid$date<- as.Date(Jacksonville_Covid$date, format = "%m/%d/%Y")
+Jacksonville_Weather$date <- as.Date(Jacksonville_Weather$date, format = "%m/%d/%Y")
+
+# shifting covid dates back 5 days (acct for incubation period)
+LA_Covid$date <- LA_Covid$date - 5
+NewYork_Covid$date <- NewYork_Covid$date - 5
+Houston_Covid$date <- Houston_Covid$date - 5
+Detroit_Covid$date <- Detroit_Covid$date - 5
+Jacksonville_Covid$date <- Jacksonville_Covid$date - 5
+
+# join city data sets by date
+LA <- inner_join(LA_Covid, LA_Weather, by = "date") 
+NewYork <- inner_join(NewYork_Covid, NewYork_Weather, by = "date")
+Houston <- inner_join(Houston_Covid, Houston_Weather, by = "date")
+Detroit <- inner_join(Detroit_Covid, Detroit_Weather, by = "date")
+Jacksonville <- inner_join(Jacksonville_Covid, Jacksonville_Weather, by = "date")
+
+```
+
+```{r More Varaibles, echo=FALSE}
+# rearange dataset by date (oldest date -> newest date)
+LA <- LA %>% arrange(date)
+NewYork <- NewYork %>% arrange(date)
+Houston <- Houston %>% arrange(date)
+Detroit <- Detroit %>% arrange(date)
+Jacksonville <- Jacksonville %>% arrange(date)
+
+
+# added new_cases (cases today - cases yesterday)
+LA <- LA %>% 
+  mutate(new_cases = cases - lag(cases, default = first(cases)))
+
+Houston <- Houston %>% 
+  mutate(new_cases = cases - lag(cases, default = first(cases)))
+
+Detroit <- Detroit %>% 
+  mutate(new_cases = cases - lag(cases, default = first(cases)))
+
+Jacksonville <- Jacksonville %>% 
+  mutate(new_cases = cases - lag(cases, default = first(cases)))
+
+
+# added new_deaths (deaths today - deaths yesterday)
+LA <- LA %>% 
+  mutate(new_deaths = deaths - lag(deaths, default = first(deaths)))
+
+Houston <- Houston %>% 
+  mutate(new_deaths = deaths - lag(deaths, default = first(deaths)))
+
+Detroit <- Detroit %>% 
+  mutate(new_deaths = deaths - lag(deaths, default = first(deaths)))
+
+
+# added cases_growth (new_cases today / yesterday cases)
+LA <- LA %>%
+  mutate(cases_growth = new_cases/lag(cases, default = first(cases)))
+
+NewYork <- NewYork %>%
+  mutate(cases_growth = new_cases/lag(cases, default = first(cases)))
+
+Houston <- Houston %>%
+  mutate(cases_growth = new_cases/lag(cases, default = first(cases)))
+
+Detroit <- Detroit %>%
+  mutate(cases_growth = new_cases/lag(cases, default = first(cases)))
+
+Jacksonville <- Jacksonville %>%
+  mutate(cases_growth = new_cases/lag(cases, default = first(cases)))
+
+# added death_growth (new_death today / yesterday deaths)
+LA <- LA %>%
+  mutate(death_growth = new_deaths/lag(deaths, default = first(deaths)))
+
+NewYork <- NewYork %>%
+  mutate(death_growth = new_deaths/lag(deaths, default = first(deaths)))
+
+Houston <- Houston %>%
+  mutate(death_growth = new_deaths/lag(deaths, default = first(deaths)))
+
+Detroit <- Detroit %>%
+  mutate(death_growth = new_deaths/lag(deaths, default = first(deaths)))
+
+# added hospitalize_growth (new_hospitalize today / yesterday hospitalize )
+NewYork <- NewYork %>%
+  mutate(hospitalize_growth = new_hospitalize/lag(hospitalize, default = first(hospitalize)))
+
+# added city name
+LA <- LA %>% mutate(city = "Los Angeles")
+NewYork <- NewYork %>% mutate(city = "New York")
+Houston <- Houston %>% mutate(city = "Houston")
+Detroit <- Detroit %>% mutate(city = "Detroit")
+Jacksonville <- Jacksonville %>% mutate(city = "Jacksonville")
+
+# added state name
+LA <- LA %>% mutate(state = "CA")
+NewYork <- NewYork %>% mutate(state = "NY")
+Houston <- Houston %>% mutate(state = "TX")
+Detroit <- Detroit %>% mutate(state = "MI")
+Jacksonville <- Jacksonville %>% mutate(state = "FL")
+
+
+# added months & Year
+LA <- LA %>%
+  mutate(Month = month(date, label = TRUE, abbr = FALSE), Year = year(date))
+
+NewYork <- NewYork %>%
+  mutate(Month = month(date, label = TRUE, abbr = FALSE), Year = year(date))
+
+Houston <- Houston %>%
+  mutate(Month = month(date, label = TRUE, abbr = FALSE), Year = year(date))
+
+Detroit <- Detroit %>%
+  mutate(Month = month(date, label = TRUE, abbr = FALSE), Year = year(date))
+
+Jacksonville <- Jacksonville %>%
+  mutate(Month = month(date, label = TRUE, abbr = FALSE), Year = year(date))
+
+# added seasons 
+get_seasons <- function(month){
+  case_when(
+    month %in% c(12, 1, 2) ~ "Winter",
+    month %in% c(3, 4, 5) ~ "Spring",
+    month %in% c(6, 7, 8) ~ "Summer",
+    TRUE ~ "Fall"
+  )
+}
+
+LA <- LA %>%
+  mutate(season = get_seasons(month(date)))
+NewYork <- NewYork %>%
+  mutate(season = get_seasons(month(date)))
+Houston <- Houston %>%
+  mutate(season = get_seasons(month(date)))
+Detroit <- Detroit %>%
+  mutate(season = get_seasons(month(date)))
+Jacksonville <- Jacksonville %>%
+  mutate(season = get_seasons(month(date)))
+
+#added state political color 
+LA <- LA %>% mutate(state_color = "Blue")
+NewYork <- NewYork %>% mutate(state_color = "Blue")
+Houston <- Houston %>% mutate(state_color = "Red")
+Detroit <- Detroit %>% mutate(state_color = "Blue")
+Jacksonville <- Jacksonville %>% mutate(state_color = "Red")
+
+# added binary value of 1 to represent blue state
+LA <- LA %>% mutate(isBlue_state = 1)
+NewYork <- NewYork %>% mutate(isBlue_state = 1)
+Houston <- Houston %>% mutate(isBlue_state = 0)
+Detroit <- Detroit %>% mutate(isBlue_state = 1)
+Jacksonville <- Jacksonville %>% mutate(isBlue_state = 0)
+
+# added state general temp
+LA <- LA %>% mutate(state_temp = "Hot")
+NewYork <- NewYork %>% mutate(state_temp = "Cold")
+Houston <- Houston %>% mutate(state_temp = "Hot")
+Detroit <- Detroit %>% mutate(state_temp = "Cold")
+Jacksonville <- Jacksonville %>% mutate(state_temp = "Hot")
+
+# added state general location
+LA <- LA %>% mutate(location = "West Coast")
+NewYork <- NewYork %>% mutate(location = "East Coast")
+Houston <- Houston %>% mutate(location = "Middle")
+Detroit <- Detroit %>% mutate(location = "Middle")
+Jacksonville <- Jacksonville %>% mutate(location = "East Coast")
+
+LA <- LA %>% mutate(state_temp = "Hot")
+NewYork <- NewYork %>% mutate(state_temp = "Cold")
+Houston <- Houston %>% mutate(state_temp = "Hot")
+Detroit <- Detroit %>% mutate(state_temp = "Cold")
+Jacksonville <- Jacksonville %>% mutate(state_temp = "Hot")
+
+# added binary value of 1 to if it rained
+LA$isRain <- ifelse(LA$precip == 0, 0, 1)
+NewYork$isRain <- ifelse(NewYork$precip == 0, 0, 1)
+Houston$isRain <- ifelse(Houston$precip == 0, 0, 1)
+Detroit$isRain <- ifelse(Detroit$precip == 0, 0, 1)
+Jacksonville$isRain <- ifelse(Jacksonville$precip == 0, 0, 1)
+
+# added binary value of 1 to if it rained
+LA$isHot_state <- ifelse(LA$state_temp == "Cold", 0, 1)
+NewYork$isHot_state <- ifelse(NewYork$state_temp == "Cold", 0, 1)
+Houston$isHot_state <- ifelse(Houston$state_temp == "Cold", 0, 1)
+Detroit$isHot_state <- ifelse(Detroit$state_temp == "Cold", 0, 1)
+Jacksonville$isHot_state <- ifelse(Jacksonville$state_temp == "Cold", 0, 1)
+
+LA$isHot_state <- ifelse(LA$state_temp == "Cold", 0, 1)
+NewYork$isHot_state <- ifelse(NewYork$state_temp == "Cold", 0, 1)
+Houston$isHot_state <- ifelse(Houston$state_temp == "Cold", 0, 1)
+Detroit$isHot_state <- ifelse(Detroit$state_temp == "Cold", 0, 1)
+Jacksonville$isHot_state <- ifelse(Jacksonville$state_temp == "Cold", 0, 1)
+
+
+# remove any negative cases (not sure what that means)
+LA <- LA %>% filter(new_cases >= 0)
+NewYork <- NewYork %>% filter(new_cases >= 0)
+Houston <- Houston %>% filter(new_cases >= 0)
+Detroit <- Detroit %>% filter(new_cases >= 0)
+Jacksonville <- Jacksonville %>% filter(new_cases >= 0)
+
+```
+
+```{r Joining cities to make US, echo=FALSE}
+LA_2021 <- LA %>% filter(date >= "2021-01-01" & date <= "2021-11-14")
+NewYork_2021 <- NewYork %>% filter(date >= "2021-01-01" & date <= "2021-11-14")
+Houston_2021 <- Houston %>% filter(date >= "2021-01-01" & date <= "2021-11-14")
+Detroit_2021 <- Detroit %>% filter(date >= "2021-01-01" & date <= "2021-11-14")
+Jacksonville_2021 <- Jacksonville %>% filter(date >= "2021-01-01" & date <= "2021-11-14")
+
+US_OG <- bind_rows(LA, NewYork, Houston, Detroit, Jacksonville)
+US <- bind_rows(LA_2021, NewYork_2021, Houston_2021, Detroit_2021, Jacksonville_2021)
+```
+
+```{r Splitting data to 60-20-20, echo=FALSE}
+set.seed(155)
+init_split <- rsample::initial_split	(US, prop = 0.6)
+US_training <- rsample::training(init_split)
+US_testing <- rsample::testing(init_split)
+
+# Further split the testing set for validation and testing
+init_split_remainder <- rsample::initial_split	(US_testing, prop = 0.5)
+US_validation <- rsample::training(init_split_remainder)
+US_testing <- rsample::testing(init_split_remainder)
+
+```
+
+
+## Introduction
+
+  Covid-19 at its height was the most trending topic in the world and understanding its transmission rate is key to preventing another outbreak, as well as understanding the outbreak that has already occurred. This naturally led to our group pondering whether there were any external variables that might affect transmission rate that weren’t discussed in the mainstream media. Our group chose to look at weather as a driving factor in Covid transmission rates, specifically temperature as well as geographical location as this has an effect on weather patterns. We gathered the necessary data from major cities across the US that were well geographically distributed throughout the countries; these being Los Angeles (CA), Jacksonville (FL). Detroit (MI), New York City (NY) and Houston (TX). 
+
+  Why does any of this matter? Well, in order to prevent another outbreak we must understand what drove the first outbreak to become so deadly. What was the reason when it came to the rapid rate at which the virus spread? Although it will be impossible to completely stop the virus from being transmitted anymore, we can at least try to find a way to reduce the transmission rate and therefore potentially save lives with our research. In order to address this problem we decided to analyze weather and primarily temperature across the different cities as our driving factor for increasing transmission rates. While we can’t change the external temperature we can suggest more stringent lockdowns during any periods of time (seasons) where we expect transmission rates to be exceptionally high. Another reason for the distribution of cities we chose, is that some cities are from extremely red states and others are from extremely blue states, so this allowed us to see how political policy impacted transmission as well. A hypothesis made from a states political color is that red states may experience higher infection rates due to there mask mandate and public events being less restrictive than blue states.
+
+  Some variables our data included were number of covid cases and death per date, and other weather variables such as precipitation, wind speed, dew, pressure, etc. Then given our team was able to add more variables such as `new_cases` which was calculated by (today's cases - yesterday cases). Then we also made `cases_growth` by doing (new_cases today / yesterday cases). `cases_growth` would be the main variable used to compare with weather variables as it accounts for different populations sizes since bigger populations experience more cases each day than smaller ones. 
+  
+  Upon a mid review section of our research, where we discussed our current research status to other groups of data scientists, A question that came up was how are we accounting for incubation periods. The data of infection doesn't correlate to the same date of weather because there is an incubation period where a person get infected but it isn't known until a couple days later. With this being said,according to the CDC, on average there is a 6.5 day period for "general" covid, 4.3 day period for the Delta variant, and a 3-4 day period for the Omicron variant. Therefore, our team decided that the best approach to account for incubation period with the data we have, is to get the average of the different averages and shift the covid data set dates back. The average ended up being 5 days and once we joined the covid data set to its weather data set, the day a person would have gotten infected more accurately matches the weather of that day than how we initially had it. 
+  
+  Since we are tying to find a correlation and will be trying to make prediction, we split our data into 60% training, 20% validation, and 20% testing set after we have added all the variables to our data. the training set will be used to for EDA and fitting parameters of a model, validation will be used for comparing models and tuning model parameters, then testing set will only be used a single time to test final model. This data splitting is important i norder to test the validation of our models since the testing set is unknown to us until the very end. 
+  
+  Therefore, the goal of this research is to find a correlation between covid rates and weather conditions. Out team have defined a successful outcome if we do find some significant evidence that given a weather variable, it can cause covid rates to either increase or decrease. The failure was defined if our analysis can't find significant evidence of a correlation existing
+
+## Related Works
+
+  The National Library of Medicine had research article which had a simaler question; they studied the correlation between weather variables and Covid cases/deaths from Italy. They did end up finding a correlation and was able to use other models to find out which weather variable has more of a significant inpact.
+  
+  Tomasz Zuk and cologues study focuses on assessing the impact of various factors, including climatic conditions (temperature and humidity), census features, and health center capacities, on the spread of COVID-19. The researchers developed predictive models using machine learning techniques, trained on datasets from Kaggle, and evaluated their performance using standard metrics. Results indicate that weather variables, particularly temperature and humidity, are more relevant in predicting the mortality rate compared to population, age, and urbanization.
+
+## Exploratory Data Analysis
+
+Before we begin to constructing EDA's and applying models to our data set, we noticed that some of our data had observations since the pandemic started. Although it is more data, it would essentially make our maid covid variable `cases_growth` be not so helpful as it will record the amount of growth from the beginning. If you think about it if yesterday there was 1 person infected and today 3 people infected, than that's a total growth of 200%. these number can through off our graphs and models and therefor, our team though it was best to just include 2021. As some data sets are missing some 2022 data.
+
+```{r fitlering dates, echo=FALSE, eval=TRUE}
+ggplot(US_OG, aes(x = date, y = cases_growth)) +
+  geom_line() + 
+    ggtitle("Before") + theme(plot.title = element_text(hjust = 0.5))
+
+ggplot(US, aes(x = date, y = cases_growth)) +
+  geom_line() + 
+    ggtitle("After") + theme(plot.title = element_text(hjust = 0.5))
+```
+  Another notable mention is that our training set has some very large outliers with Florida that could cause results to be misinterpreted. Since it was only 5 observations with such high `cases_growth`, the team found it appropriate to filter these observations out. This lead to our data being more consistent which will be beneficial to making better and more accurate predictions if a correlation is found. 
+
+```{r fitlering cases_growth outliers, echo=FALSE, eval=TRUE}
+ggplot(US_training, aes(x = city, y = cases_growth, fill = city)) +
+  geom_boxplot() +
+    ggtitle("Before") + theme(plot.title = element_text(hjust = 0.5)) 
+
+US_training_filtered <- US_training %>% filter(cases_growth < 0.025)
+
+ggplot(US_training_filtered, aes(x = city, y = cases_growth,fill = city)) +
+  geom_boxplot() +
+    ggtitle("After") + theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+
+One of graphs we wanted to investigate is see how temperature could have an affect on covid cases. we graphed out  the temperature on the y-axis and the cases_growth on the x-axis. A hypothesis that can be made is that the lower the temperature, the more plots we can begin seeing more towards the right side of the graph. This would be a start to investigating if colder temperatures causes higher covid cases.
+
+```{r, echo=FALSE, eval=TRUE }
+ggplot(US_training_filtered, aes(x = cases_growth, y = temp, color = season)) +
+  geom_point() + geom_smooth(se = FALSE) + 
+  facet_wrap(~city)
+```
+
+Given the results of the graph, there does seem to be some type of relationship with winter temp plots extending out the furthest which means more cases growth. But  places like Detroit is showing opposite signs and Houston seems to have no relationship. The other weather variables was also applied to this graph however there wasn't any patterns that pop out that could be relevant. To further investigate the how much the different seasons temperature variables, we can make a box plot and violin plot ans see how there different averages place. 
+
+```{r}
+ggplot(US_training_filtered, aes(x = season, y = temp, fill = season)) +
+  geom_boxplot() + geom_violin(alpha = 0.4)
+
+```
+
+## Models & Methods
+
+### Anova & TukeyHSD 
+
+For the beginning stages of our model building, we wanted to first conduct our analysis on more general variables within our data before we dive deeper to the actually weather variables per day. A model used was the ANOVA (analysis of variance) test. This models estimates how quantitative dependent variable changed according to the levels of one or more categorical independent variable. In order to use the ANOVA test, it must stand true to 3 conditions before proceeding:
+
+  1. the observations are independent within and across groups
+  2. the data within each group are nearly normal
+  3. the variability across the groups are nearly equal
+  
+If the conditions are met, then the ANOVA test can be used. If its p-value is less than the significant value, than further testing can be done by using the TukeyHSD (honest significant difference) test. The important of the TukeyHSD test is that it can find which categorical variable are different by comparing the means od each possible pair of groups.
+  
+Using the box plot and violin graph from the temperature of our seasons above, we can see that the different seasons are independent within and across groups, data within each season are normal, and variabilty across froups are nearly equal. Thefore ANOVA test can be used on the diffrent Seasons to get a better idea on much mush does temperture cahnge in the different seasons
+
+```{r ANOVA on seasons}
+anova_result <- aov(temp ~ season, data = US_training_filtered)
+summary(anova_result)
+
+tukey_result <- TukeyHSD(anova_result)
+tukey_result
+```
+
+Given the p-value from the ANOVA analysis, we can reject the null hypothesis and use the TukeyHSD to see what seasons are causing the difference. The TukeyHSD gives us an adjusted p-value for each compassion and based on these results, each seasons has a significant difference than the others in temperature. The reason why this testing is relevant to our research is so that we can compare the differences between Summer and Winter since these seasons are the extreme differences in temperature which will be used to see if summer weather has a difference in covid transmission compared to winter weather. Given the results from `Winter-Summer`, we can see that there is a difference between Winter and Summer temperature is -31.67 degrees. the negative sign mean that winter is -31.64 lower than summer. This can be a good step when we begin further testing
+
+Another test that we can use the ANOVA and TukeyHSD again is see how different is covid cases compared to the general location of the cities we chose. As mentioned before, we added new variables to the data set to know if the observation is from the east coast, central, or west coast. This can be useful to give us more information on how covid transmission differ across the US so that we can refer back to given the results when we finalize a conclusion. 
+
+```{r EDA on general location}
+ggplot(US_training_filtered, aes(x = location, y = cases, fill = location)) +
+  geom_boxplot()
+
+```
+
+Given the box plots, it matches all the conditions of the ANOVA tests in order to proceed. The 3 condition test is kinda questionable in some of the points so the results of the ANOVA tests shouldn't be taken too accurately but its good enough to find a pattern.
+
+```{r ANOVA on general location}
+anova_result <- aov(cases ~ location, data = US_training_filtered)
+summary(anova_result)
+
+tukey_result <- TukeyHSD(anova_result)
+tukey_result
+```
+
+Based on these results, we can see that all different location are significantly different from one and other, however if you where to look at the west Cast, there is a more covid transmission cases going on. This model was more used to reference to make sure our cities are experimenting covid differently so that if we do find a correlation between weather and covid transmission, then we know that it was based on cities with wide variability. We originally wanted to test the general location with cases_growth, however it did not satisfy he 3rd condition of the ANOVA analysis at all. Therefor any results from the test would not be very effective. 
+
+### Logistic Regression
+
+Logistic regression is a regression model for response variables in a binary format (0 or 1). In our data set, we generated some instances of binary data with our categorical values with only 2 diffrent values. we also made a rain variable that was gather based on the precipation data. overall, our binaray variable include:
+
+  isBlue_state (1 = blue, 0 = red)
+  isHot_state (1 = Hot, 0 = Cold)
+  isRain (1 = it Rained, 0 = it didn't)
+  
+Just like most models, there are conditions that must be met before you apply the model to your data.  for logistic regression you just have to graph the data and see if you get an inverse cubic type curve (like a stretched out integral symbol). If true, then you can proceed to apply the model and check if you have a p-value less than the significant value. This model can be useful to see if there is significant evidence if rain has more covid growth rates than no rain. If there is significant evidence, than we can make predictions such as computing the odds of a cases growth rate of 2% occurs if it rained.
+  
+```{r Logistic regression}
+
+# testing hot and cold states
+ggplot(US_training_filtered, aes(x = cases_growth, y = isHot_state)) + 
+    geom_point() + geom_smooth(se = FALSE) +
+    ggtitle("(Hot vs Cold) State") + theme(plot.title = element_text(hjust = 0.5)) 
+
+# testing blue and red states
+ggplot(US_training_filtered, aes(x = cases_growth, y = isBlue_state)) + 
+    geom_point() + geom_smooth(se = FALSE) +
+    ggtitle("(Blue vs Red) State") + theme(plot.title = element_text(hjust = 0.5)) 
+
+#testing if it rained or didn't
+ggplot(US_training_filtered, aes(x = cases_growth, y = isRain)) + 
+    geom_point() + geom_smooth(se = FALSE)  +
+    ggtitle("Rain or No Rain") + theme(plot.title = element_text(hjust = 0.5)) 
+
+```
+
+based on the results from the following graphs, the logistic model can not be applied here due to the line shape not be corect. If the model where to be applied, there are instances where it shows that there is a significant correlation between the variables. However, that is incorrect because based on the graphs, it does not have a good fit and in logistic regression, you cant change parameters to adjust anything due to the line being a representation of the plots.
+
+### Linear Regresion
+
+Linear regression is where a lot of predictions can be made if a correlation exists. linear regression is a regression model that works if the plots form a linear relationship between 2 variables. It can also hand multiple variables such that we can compare `covid_cases` with all kinds of weather variables. Given the plots, it will do its best to make a prediction line where it could essentially be useful to us by being about to predict the number of cases_growth given a tempture. 
+
+```{r Linear regression, echo=FALSE, eval=TRUE}
+
+# apply linear model on iris
+model <- parsnip::linear_reg() %>%
+  parsnip::fit(cases_growth ~ temp, data = US_training_filtered)
+#model
+
+# made data_grid with actual and prediction values for Petal.Width
+grid <- data_grid(US_training_filtered, temp)
+preds <- grid %>%
+  bind_cols(predict(model, new_data = grid))
+
+# Generate a scatter plot with actual `Petal.Length` on the x-axis and predicted `Petal.Length` line
+ggplot(data = US_training_filtered, mapping = aes(x = temp, y = cases_growth)) +
+  geom_point() +
+  geom_line(mapping = aes(y = .pred), data = preds, color = "red")
+
+# added `.pred` and `resis` to new tibble with also all data of irisTibble 
+data_model <- US_training_filtered %>%
+  bind_cols(predict(model, new_data = US_training_filtered)) %>%
+  mutate(resid = cases_growth - .pred)
+
+# Plot of the residuals
+ggplot(data = data_model, mapping = aes(x = temp, y = resid)) +
+  geom_ref_line(h = 0) +
+  geom_point()
+
+```
+
+Based on the outcome, there is not a linear relationship with `cases_growth` and `temp`. Even though a prediction line is showing something, It is incorrect because if we plot the residuals, it shows that it is not random. Since the residuals are the difference between each actual and predicted points, it should exhibit some randomness because there should not be any more patterns within the data that the model did not capture. This same method of testing was applied with `cases_growth` to precip, dew, wind, pressure, etc and it all had the overall same outcome with no linear relationship
+
+### Logarthmic Regresion
+
+  Part of the linear regression family, logarithmic regresion is used for data that has a logarithmic relationship. logs are useful as it can help with finding a relationship with skewed data. As mentioned before, there was a relating from PubMed Central where they conducted a simaler analysis on the correlation between covid rates and weather conditions at Italy. They where able to find a correlation by taking the log of the number of cases with weather. This inspired our team to try it out on our data swell as we do have a number of cases column. 
+  
+```{r, echo=FALSE, eval=TRUE}
+model <- parsnip::linear_reg() %>%
+  parsnip::fit(I(log(cases)) ~ temp, data = US_training_filtered)
+#model
+
+# made data_grid with actual and prediction values for Petal.Width
+grid <- data_grid(US_training_filtered, temp)
+preds <- grid %>%
+  bind_cols(predict(model, new_data = grid))
+
+# Generate a scatter plot with actual `Petal.Length` on the x-axis and predicted `Petal.Length` line
+ggplot(data = US_training_filtered, aes(x = temp, y = log(cases))) +
+  geom_point() +
+  geom_line(mapping = aes(y = .pred), data = preds, color = "red")  
+
+```
+
+  Based on the graph generated output, there seems to be a wierd pattern going on. after reviewing our data, I relized that the different cases from the different cities is causing this pattern to occur and thus the data must be from just one location since we need the cases variable to be growing in 1 path. This is true too in the research paper published my PubMed as they took the cases of Italy as a whole and not in different parts of Italy. Therefor, we filtered the data set to just 1 city and applied the logarithmic regression model again.
+  
+```{r Linear regression, echo=FALSE, eval=TRUE}
+
+houston_training <-  US_training_filtered %>% filter(city == "Houston")
+# apply linear model on iris
+model <- parsnip::linear_reg() %>%
+  parsnip::fit(I(log(cases)) ~ temp, data = houston_training)
+#model
+
+# made data_grid with actual and prediction values for Petal.Width
+grid <- data_grid(houston_training, temp)
+preds <- grid %>%
+  bind_cols(predict(model, new_data = grid))
+
+# Generate a scatter plot with actual `Petal.Length` on the x-axis and predicted `Petal.Length` line
+ggplot(data = houston_training, mapping = aes(x = temp, y = log(cases))) +
+  geom_point() +
+  geom_line(mapping = aes(y = .pred), data = preds, color = "red")
+
+# added `.pred` and `resis` to new tibble with also all data of irisTibble 
+data_model <- houston_training %>%
+  bind_cols(predict(model, new_data = houston_training)) %>%
+  mutate(resid = cases - .pred)
+
+# Plot of the residuals
+ggplot(data = data_model, mapping = aes(x = temp, y = resid)) +
+  geom_ref_line(h = 0) +
+  geom_point()
+
+```
+
+Based on these results, we where not able to find a correlation between cases and temperature as the article did. The Residuals follow the same pattern as the actual plotted points so there is no randomness going on and thus the model couldn't find anything. 
+
+### Conclusion
+
+  In our extensive exploration, involving the application of ANOVA, TukeyHSD, Logistic Regression, Linear Regression, and Logarithmic Regression, we have discerned that there appears to be a lack of significant correlation between weather conditions and COVID transmission based on the tools that we used. If a connection was found then we could have gone to using the validating set to keep on applying our models for adjustments, then lastly use the testing set to ultimately give a better conclusion weather our models can me used for prediction or not. However since that is not the case, we cant proceed with our current methods. If more time was given, there is many more models and methods that can be further looked into to see if it can be applied to our data in order to find a correlation. Also instead of being very specific with daily observation of weather and covid, we can tone it down by getting the weekly average. Maybe this clears the space and a pattern becomes more visable. Although our testing ended up with a failure, it doesnt mean that there is no correlation between covid and weather. This only means that there wasn't any correlation with our methods and thus there is still more to investigate.
+
+
+## Sources
+
+(N.d.). https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9387066/
+
+US Department of Commerce, N. (2022, March 3). Climate. https://www.weather.gov/wrh/Climate?wfo=lox 
+
+Literature review of the effect of temperature and humidity on viruses. (n.d.-a). https://orf.od.nih.gov/TechnicalResources/Bioenvironmental/Documents/FINALPUBLISHEDPaperonHUMIDITYandViruses509.pdf 
+
+University of Manchester. (2021, December 10). New study shows link between weather and spread of covid-19. https://www.manchester.ac.uk/discover/news/new-study-shows-link-between-weather-and-spread-of-covid-19/ 
+
+Malki, Z., Atlam, E.-S., Hassanien, A. E., Dagnew, G., Elhosseini, M. A., & Gad, I. (2020, September). Association between weather data and COVID-19 pandemic predicting mortality rate: Machine learning approaches. Chaos, solitons, and fractals. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7367008/ 
+
+Find open datasets and Machine Learning Projects. Kaggle. (n.d.). https://www.kaggle.com/datasets
+
+National Weather Service
+https://www.weather.gov/mfl/
+
+
+
+
+
